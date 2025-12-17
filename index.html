@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>最完整的汉语拼音表</title>
+  <meta http-equiv="Content-Language" content="zh-cn" />
+  <meta name="keywords" content="汉语,拼音,汉语拼音,汉语拼音表,pinyin" />
+  <meta name="description" content="最完整的汉语拼音表" />
+  <style>
+    body {
+      text-align: center;
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      font-family: "Microsoft YaHei";
+      font-size: 22px;
+    }
+    h2 {
+      font-family: Arial;
+      font-size: 20px;
+    }
+    .switch-container {
+      margin: 10px 0;
+      font-size: 16px;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+      margin: 0 8px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #2196F3;
+    }
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+    table {
+      margin: 0 auto;
+      font-family: Arial;
+      font-size: 14px;
+      text-align: center;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    table td,
+    table th {
+      border: 1px solid #D99795;
+      line-height: 18px;
+      padding: 3px;
+      white-space: nowrap;
+      position: relative;
+    }
+    table thead th {
+      font-weight: bold;
+      background-color: #D7E4BC;
+    }
+    table tbody th {
+      background-color: #FDE9D9;
+      padding: 3px 6px;
+    }
+    .highlight {
+      background-color: #D8F79D !important;
+    }
+    .tooltip {
+      cursor: help;
+    }
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      background-color: black;
+      color: white;
+      text-align: center;
+      border-radius: 0px;
+      padding: 2px 2px;
+      position: absolute;
+      z-index: 1000;
+      bottom: 125%;
+      left: 50%;
+      transform: translate(10%,60%);
+      opacity: 0;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+      font-family: Arial, sans-serif;
+      font-size: 20px;
+      line-height: 24px;
+      min-width: 60px;
+    }
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+    }
+    .tooltip .tooltiptext div {
+      padding: 2px 0;
+      cursor: pointer;
+    }
+    .tooltip .tooltiptext div:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+<h1>最完整的汉语拼音表</h1>
+<h2>The most complete Pinyin Table</h2>
+<div class="switch-container">
+  <label for="decomposeSwitch">点击提示器中的拼音播放读音，打开开关拼音分解播放：</label>
+  <label class="switch">
+    <input type="checkbox" id="decomposeSwitch">
+    <span class="slider"></span>
+  </label>
+</div>
+<table border="0" cellpadding="2" cellspacing="1">
+  <thead>
+    <tr id="headerRow">
+      <th style="background-color: #CCCCCC;"></th>
+    </tr>
+  </thead>
+  <tbody id="tableBody"></tbody>
+</table>
+
+<p class="footer">单韵母 6 个：a o e i u ü</p>
+<p class="footer">复韵母 8 个：ai ei ui ao ou iu ie üe</p>
+<p class="footer">特殊韵母 1 个：er</p>
+<p class="footer">前鼻韵母 5 个：an en in un ün</p>
+<p class="footer">后鼻韵母 4 个：ang eng ing ong</p>
+<p class="footer">整体认读音节 16 个：zhi chi shi ri zi ci si yi wu yu ye yue yuan yin yun ying</p>
+
+<script>
+  const CSV_URL = './pyTp.csv';
+  const TONES_URL = './tones4py.json';
+  const TONE_MAP_URL = './json/toneMap.json';
+
+  const CONSONANTS = ['b','p','m','f','d','t','n','l','g','k','h','j','q','x','zh','ch','sh','r','z','c','s','y','w',''];
+  const VOWELS_2PART = ['er','a','ai','ao','an','o','ou','e','ei','en','iu','ui','un','ang','eng','ong','i','ie','in','ing','u','ü','üe','ün'];
+  const VOWELS_3PART = ['ia','iao','ian','iang','iong','ua','uai','uan','uang','uo','üan'];
+  const VALID_VOWELS = new Set([...VOWELS_2PART, ...VOWELS_3PART]);
+
+  let tones4py = {};
+  let toneMap = {};
+  let decomposeMode = false;
+
+  function toFilename(p) {
+    return p.replace(/ü/g, 'v');
+  }
+
+  function playAudio(url) {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio(url);
+      audio.onended = resolve;
+      audio.onerror = reject;
+      audio.play().catch(reject);
+    });
+  }
+
+  function getToneFromTonedChar(toneChar, basePy) {
+    const tones = tones4py[basePy];
+    if (!tones) return 0;
+    const idx = tones.indexOf(toneChar);
+    if (idx === 1) return 0; // untoned
+    if (idx >= 2 && idx <= 5) return idx - 1; // tone 1–4
+    return 0;
+  }
+
+  // ✅ CORRECTED DECOMPOSED PLAYBACK
+  async function playDecomposedClick(basePy, consonant, vowel, toneChar) {
+    const toneNum = getToneFromTonedChar(toneChar, basePy);
+    const wholeFile = toFilename(basePy) + (toneNum === 0 ? '' : toneNum) + '.mp3';
+
+    try {
+      if (VOWELS_2PART.includes(vowel)) {
+        // 两拼: ba → b + a1 + ba1
+        const vFile = toFilename(vowel) + (toneNum === 0 ? '' : toneNum) + '.mp3';
+        await playAudio(`./d/py/${toFilename(consonant)}.mp3`);
+        await playAudio(`./d/py/${vFile}`);
+        await playAudio(`./d/hz/${wholeFile}`);
+      } else if (VOWELS_3PART.includes(vowel)) {
+        // 三拼: jia → j + i + a1 + jia1
+        const mediator = vowel[0];
+        const rest = vowel.slice(1);
+        const restFile = toFilename(rest) + (toneNum === 0 ? '' : toneNum) + '.mp3';
+        await playAudio(`./d/py/${toFilename(consonant)}.mp3`);
+        await playAudio(`./d/py/${toFilename(mediator)}.mp3`);
+        await playAudio(`./d/py/${restFile}`);
+        await playAudio(`./d/hz/${wholeFile}`);
+      } else {
+        // fallback
+        await playAudio(`./d/hz/${wholeFile}`);
+      }
+    } catch (e) {
+      console.warn("Fallback to whole pinyin:", e);
+      await playAudio(`./d/hz/${wholeFile}`);
+    }
+  }
+
+  function handlePinyinClick(basePy, consonant, vowel, event) {
+    event.stopPropagation();
+    const toneChar = event.target.textContent;
+    if (toneChar === '-') return;
+
+    if (decomposeMode && consonant && vowel && VALID_VOWELS.has(vowel)) {
+      playDecomposedClick(basePy, consonant, vowel, toneChar);
+    } else {
+      const toneNum = getToneFromTonedChar(toneChar, basePy);
+      const file = toFilename(basePy) + (toneNum === 0 ? '' : toneNum) + '.mp3';
+      playAudio(`./d/hz/${file}`).catch(console.error);
+    }
+  }
+
+  // ========= TOOLTIP BUILDERS =========
+  function createPinyinTooltip(cell, basePy) {
+    const tones = tones4py[basePy];
+    if (!tones) return;
+    const div = document.createElement('div');
+    div.className = 'tooltiptext';
+    for (let i = 1; i <= 5; i++) {
+      if (tones[i] === '-') continue;
+      const row = document.createElement('div');
+      row.textContent = tones[i];
+      row.addEventListener('click', e => handlePinyinClick(basePy, cell._consonant, cell._vowel, e));
+      div.appendChild(row);
+    }
+    cell.classList.add('tooltip');
+    cell.appendChild(div);
+  }
+
+  function createConsonantTooltip(th, consonant) {
+    if (!consonant) return;
+    const div = document.createElement('div');
+    div.className = 'tooltiptext';
+    div.textContent = consonant;
+    div.addEventListener('click', e => {
+      e.stopPropagation();
+      playAudio(`./d/py/${toFilename(consonant)}.mp3`).catch(console.error);
+    });
+    th.classList.add('tooltip');
+    th.appendChild(div);
+  }
+
+  function createVowelTooltip(th, vowel) {
+    // Use toneMap if available, otherwise skip
+    const idx = toneMap?.TONE_INDEX?.[vowel];
+    const letters = toneMap.TONED_VOWELS[vowel[idx]];
+    //console.log("createVowelTooltip called for:", vowel, "element:", th, "idx:", idx, "letters:", letters);
+    if (!letters || letters.length !== 5) return;
+
+    const div = document.createElement('div');
+    div.className = 'tooltiptext';
+    for (let t = 0; t <= 4; t++) {
+      const toned = vowel.substring(0, idx) + letters[t] + vowel.substring(idx + 1);
+      const row = document.createElement('div');
+      row.textContent = toned;
+      row.addEventListener('click', e => {
+        e.stopPropagation();
+        if (VOWELS_3PART.includes(vowel)) {
+          // For 三拼 headers like 'ia', play mediator + rest
+          const mediator = vowel[0];
+          const rest = vowel.slice(1);
+          const num = t === 0 ? '' : t;
+          playAudio(`./d/py/${toFilename(mediator)}.mp3`)
+            .then(() => playAudio(`./d/py/${toFilename(rest)}${num}.mp3`))
+            .catch(console.error);
+        } else {
+          // For 两拼 headers like 'a', play a1.mp3
+          const num = t === 0 ? '' : t;
+          playAudio(`./d/py/${toFilename(vowel)}${num}.mp3`).catch(console.error);
+        }
+      });
+      div.appendChild(row);
+    }
+    th.classList.add('tooltip');
+    th.appendChild(div);
+  }
+
+  // ========= BUILD TABLE =========
+  async function buildTable() {
+    try {
+      const [csvRes, tonesRes, toneMapRes] = await Promise.all([
+        fetch(CSV_URL),
+        fetch(TONES_URL),
+        fetch(TONE_MAP_URL)
+      ]);
+      const csvText = await csvRes.text();
+      tones4py = await tonesRes.json();
+      toneMap = await toneMapRes.json();
+
+      const lines = csvText.trim().split('\n');
+      const headers = lines[0].split(',').map(h => h.trim());
+      const tbody = document.getElementById('tableBody');
+      const theadRow = document.getElementById('headerRow');
+
+      theadRow.innerHTML = '<th style="background-color: #CCCCCC;"></th>';
+      tbody.innerHTML = '';
+
+      // Build header row
+      for (let j = 1; j < headers.length; j++) {
+        const v = headers[j];
+        const th = document.createElement('th');
+        th.textContent = v;
+        if (VALID_VOWELS.has(v)) {
+          createVowelTooltip(th, v);
+        }
+        theadRow.appendChild(th);
+      }
+
+      // Build body
+      for (let i = 1; i < lines.length; i++) {
+        const cells = lines[i].split(',').map(c => c.trim());
+        const consonant = CONSONANTS[i - 1] || '';
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.textContent = consonant;
+        createConsonantTooltip(th, consonant);
+        tr.appendChild(th);
+
+        for (let j = 1; j < cells.length; j++) {
+          const py = cells[j];
+          const vowel = headers[j];
+          const td = document.createElement('td');
+          td.textContent = py;
+          td._consonant = consonant;
+          td._vowel = vowel;
+          if (py && tones4py[py]) {
+            createPinyinTooltip(td, py);
+          }
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+
+      // ========= COLUMN HIGHLIGHT (from 3.html.txt + extended) =========
+      const table = document.querySelector('table');
+      const thead = table.querySelector('thead');
+      const tbodyEl = table.querySelector('tbody');
+      const headerThs = Array.from(thead.querySelectorAll('th')).slice(1);
+      const bodyRows = Array.from(tbodyEl.querySelectorAll('tr'));
+
+      function highlightColumn(colIndex, isOver) {
+        headerThs[colIndex - 1]?.classList.toggle('highlight', isOver);
+        bodyRows.forEach(row => {
+          const cell = row.children[colIndex];
+          if (cell) cell.classList.toggle('highlight', isOver);
+        });
+      }
+
+      tbodyEl.addEventListener('mouseover', e => {
+        if (e.target.tagName !== 'TD') return;
+        const row = e.target.parentNode;
+        const colIndex = Array.from(row.children).indexOf(e.target);
+        row.classList.add('highlight');
+        highlightColumn(colIndex, true);
+      });
+      tbodyEl.addEventListener('mouseout', e => {
+        if (e.target.tagName !== 'TD') return;
+        const row = e.target.parentNode;
+        const colIndex = Array.from(row.children).indexOf(e.target);
+        row.classList.remove('highlight');
+        highlightColumn(colIndex, false);
+      });
+
+      thead.addEventListener('mouseover', e => {
+        if (e.target.tagName !== 'TH') return;
+        const colIndex = Array.from(thead.querySelectorAll('th')).indexOf(e.target);
+        if (colIndex === 0) return;
+        highlightColumn(colIndex, true);
+      });
+      thead.addEventListener('mouseout', e => {
+        if (e.target.tagName !== 'TH') return;
+        const colIndex = Array.from(thead.querySelectorAll('th')).indexOf(e.target);
+        if (colIndex === 0) return;
+        highlightColumn(colIndex, false);
+      });
+
+      document.getElementById('decomposeSwitch').addEventListener('change', e => {
+        decomposeMode = e.target.checked;
+      });
+    } catch (err) {
+      console.error("Build table failed:", err);
+      document.body.innerHTML = '<h2>加载失败：请检查文件路径</h2>';
+    }
+  }
+
+  buildTable();
+</script>
+</body>
+</html>
+
+
