@@ -12,7 +12,7 @@ Interactive pinyin table with:
 ## Features
 - Supports 两拼 (e.g., ba) and 三拼 (e.g., jia)
 - All 16 整体认读音节 included
-- Mobile-friendly, responsive design
+- friendly, responsive design
 
 ## Data Sources
 - `pyTp.csv`: Full pinyin table
