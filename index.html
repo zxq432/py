@@ -208,21 +208,24 @@
     const match = files.find(f => f.tonedText === toneChar);
     if (!match) return;
 
-    if (decomposeMode && isDecomposable(py, consonant, vowel)) {
-      // === Decomposed mode ===
-      await playAudio(`./d/py/${toFilename(consonant)}.mp3`);
-
-      if (VOWELS_3.includes(vowel)) {
-        // 三拼: mediator + rest
-        const mediator = vowel[0];
-        const rest = vowel.slice(1);
-        await playAudio(`./d/py/${toFilename(mediator)}.mp3`);
-        await playAudio(`./d/py/${toFilename(rest)}${match.suffix}`);
-      } else {
-        // 两拼: full vowel
-        await playAudio(`./d/py/${toFilename(vowel)}${match.suffix}`);
+    //if (decomposeMode && isDecomposable(py, consonant, vowel)) {
+    if (isDecomposable(py, consonant, vowel)) {
+      if (decomposeMode) {
+        // === Decomposed mode ===
+        await playAudio(`./d/py/${toFilename(consonant)}.mp3`);
+  
+        if (VOWELS_3.includes(vowel)) {
+          // 三拼: mediator + rest
+          const mediator = vowel[0];
+          const rest = vowel.slice(1);
+          await playAudio(`./d/py/${toFilename(mediator)}.mp3`);
+          await playAudio(`./d/py/${toFilename(rest)}${match.suffix}`);
+        } else {
+          // 两拼: full vowel
+          await playAudio(`./d/py/${toFilename(vowel)}${match.suffix}`);
+        }
+  
       }
-
       // Full pinyin from hz
       await playAudio(`./d/hz/${toFilename(consonant)}/${toFilename(py)}${match.suffix}`);
     } else {
